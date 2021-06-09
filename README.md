@@ -1,3 +1,9 @@
+Hummingbot now with Demex~ Gets your trades clean, and your futures bright and spiffy.
+
+Note this adds a connector to the Demex Exchange, Consume as per normal. 
+
+
+
 ![Hummingbot](https://i.ibb.co/X5zNkKw/blacklogo-with-text.png)
 
 ----
