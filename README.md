@@ -2,7 +2,7 @@ Hummingbot now with Demex~ Gets your trades clean, and your futures bright and s
 
 Note this adds a connector to the Demex Exchange, Consume as per normal. 
 
-
+PC LOAD LETTER, it bliked
 
 ![Hummingbot](https://i.ibb.co/X5zNkKw/blacklogo-with-text.png)
 
