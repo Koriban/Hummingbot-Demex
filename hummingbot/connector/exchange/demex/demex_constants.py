@@ -1,7 +1,7 @@
 # A single source of truth for constant variables related to the exchange
 
 
-EXCHANGE_NAME = "switcheo"
+EXCHANGE_NAME = "demex"
 REST_URL = "https://tradescan.switcheo.org"
 
 WSS_PRIVATE_URL = "wss://d289dek49b4wqs.cloudfront.net/v2/user"

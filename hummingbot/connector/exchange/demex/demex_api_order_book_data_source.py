@@ -5,7 +5,7 @@ import logging
 import time
 import aiohttp
 import pandas as pd
-import hummingbot.connector.exchange.switcheo.switcheo_constants as constants
+import hummingbot.connector.exchange.demex.demex_constants as constants
 
 import nest_asyncio
 
@@ -18,14 +18,14 @@ from hummingbot.core.data_type.order_book_message import OrderBookMessage
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.core.utils.async_utils import safe_gather
 from hummingbot.logger import HummingbotLogger
-from . import switcheo_utils
-from .switcheo_active_order_tracker import DemexActiveOrderTracker
-from .switcheo_order_book import DemexOrderBook
-from .switcheo_websocket import DemexWebsocket
-from .switcheo_utils import ms_timestamp_to_s
+from . import demex_utils
+from .demex_active_order_tracker import DemexActiveOrderTracker
+from .demex_order_book import DemexOrderBook
+from .demex_websocket import DemexWebsocket
+from .demex_utils import ms_timestamp_to_s
 
 
-class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
+class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
     MAX_RETRIES = 20
     MESSAGE_TIMEOUT = 30.0
     SNAPSHOT_TIMEOUT = 10.0
@@ -57,10 +57,10 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 print(temp)
                 for o in resp_json:
                     print(o)
-                    if o["market"] == switcheo_utils.convert_to_exchange_trading_pair(temp):
+                    if o["market"] == demex_utils.convert_to_exchange_trading_pair(temp):
                          print("true - " , o["market"])
                 last_trade = [o["last_price"] for o in resp_json if o["market"] ==
-                              switcheo_utils.convert_to_exchange_trading_pair(temp)]
+                              demex_utils.convert_to_exchange_trading_pair(temp)]
                 print("last_trade - ", last_trade)
                 if last_trade and last_trade[0] is not None:
                     result[t_pair] = last_trade[0]
@@ -72,7 +72,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
         async with aiohttp.ClientSession() as client:
             async with client.get(f"{constants.REST_URL}/get_markets", timeout=10) as response:
                 if response.status == 200:
-                    from hummingbot.connector.exchange.switcheo.switcheo_utils import \
+                    from hummingbot.connector.exchange.demex.demex_utils import \
                         convert_from_exchange_trading_pair
                     try:
                         data: Dict[str, Any] = await response.json()
@@ -90,7 +90,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
         async with aiohttp.ClientSession() as client:
             orderbook_response = await client.get(
                 f"{constants.REST_URL}/get_orderbook?limit=150&market="
-                f"{switcheo_utils.convert_to_exchange_trading_pair(trading_pair)}"
+                f"{demex_utils.convert_to_exchange_trading_pair(trading_pair)}"
             )
 
             if orderbook_response.status != 200:
@@ -133,7 +133,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
         active_order_tracker: DemexActiveOrderTracker = DemexActiveOrderTracker()
         bids, asks = active_order_tracker.convert_snapshot_message_to_order_book_row(snapshot_msg)
         order_book.apply_snapshot(bids, asks, snapshot_msg.update_id)
-        # print("Hello from Switcheo Connector")
+        # print("Hello from demex Connector")
         return order_book
 
     async def listen_for_trades(self, ev_loop: asyncio.BaseEventLoop, output: asyncio.Queue):
@@ -146,7 +146,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 # async def on_connect():
                 #     print("I am connect to demex websocket!")
                 #     # await demex.subscribe_books("orderbook", "swth_eth1")
-                #     await demex.get_recent_trades('recent_trades', switcheo_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
+                #     await demex.get_recent_trades('recent_trades', demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
 
                 # async def on_receive_message(message: dict):
                 #     print("I received a message")
@@ -161,7 +161,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 await ws.connect()
 
                 await ws.subscribe(list(map(
-                    lambda pair: f"recent_trades.{switcheo_utils.convert_to_exchange_trading_pair(pair)}",
+                    lambda pair: f"recent_trades.{demex_utils.convert_to_exchange_trading_pair(pair)}",
                     self._trading_pairs
                 )))
 
@@ -178,7 +178,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                     trade_msg: OrderBookMessage = DemexOrderBook.trade_message_from_exchange(
                         trade,
                         trade_timestamp,
-                        metadata={"trading_pair": switcheo_utils.convert_from_exchange_trading_pair(trade["market"])}
+                        metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(trade["market"])}
                     )
                     output.put_nowait(trade_msg)
 
@@ -200,7 +200,7 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 await ws.connect()
 
                 await ws.subscribe(list(map(
-                    lambda pair: f"books.{switcheo_utils.convert_to_exchange_trading_pair(pair)}",
+                    lambda pair: f"books.{demex_utils.convert_to_exchange_trading_pair(pair)}",
                     self._trading_pairs
                 )))
 
@@ -208,11 +208,11 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 #     print("I am connect to demex websocket!")
                 #     # await demex.subscribe_books("orderbook", "swth_eth1")
                 #     list(map(
-                #         lambda pair: f"book.{switcheo_utils.convert_to_exchange_trading_pair(pair)}.150",
+                #         lambda pair: f"book.{demex_utils.convert_to_exchange_trading_pair(pair)}.150",
                 #         self._trading_pairs
                 #     ))
-                #     # await demex.get_recent_trades('recent_trades', switcheo_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
-                #     # await demex.subscribe_books("offerbook",  switcheo_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
+                #     # await demex.get_recent_trades('recent_trades', demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
+                #     # await demex.subscribe_books("offerbook",  demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
 
                 # async def on_receive_message(message: dict):
                 #     epoch = time.time()
@@ -246,10 +246,10 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 #     orderbook_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
                 #         order_book_data,
                 #         timestamp,
-                #         metadata={"trading_pair": switcheo_utils.convert_from_exchange_trading_pair(
+                #         metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(
                 #             market)}
                 #     )
-                #     print("Hello from Switcheo Connector 2")
+                #     print("Hello from demex Connector 2")
                 #     output.put_nowait(orderbook_msg)
 
                 # demex: DemexWebsocket = DemexWebsocket(constants.WSS_PUBLIC_URL)
@@ -267,10 +267,10 @@ class SwitcheoAPIOrderBookDataSource(OrderBookTrackerDataSource):
                     orderbook_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
                         order_book_data,
                         timestamp,
-                        metadata={"trading_pair": switcheo_utils.convert_from_exchange_trading_pair(
+                        metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(
                             response["result"]["instrument_name"])}
                     )
-                    # print("Hello from Switcheo Connector 2")
+                    # print("Hello from demex Connector 2")
                     output.put_nowait(orderbook_msg)
 
             except asyncio.CancelledError:
