@@ -6,8 +6,8 @@ import logging
 from typing import Optional, List, AsyncIterable, Any
 from hummingbot.core.data_type.user_stream_tracker_data_source import UserStreamTrackerDataSource
 from hummingbot.logger import HummingbotLogger
-from .demex_auth import DemexAuth
-from .demex_websocket import DemexWebsocket
+from .switcheo_auth import DemexAuth
+from .switcheo_websocket import DemexWebsocket
 
 
 class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
@@ -22,8 +22,8 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
             cls._logger = logging.getLogger(__name__)
         return cls._logger
 
-    def __init__(self, demex_auth: DemexAuth, trading_pairs: Optional[List[str]] = []):
-        self._demex_auth: DemexAuth = demex_auth
+    def __init__(self, crypto_com_auth: DemexAuth, trading_pairs: Optional[List[str]] = []):
+        self._switcheo_auth: DemexAuth = crypto_com_auth
         self._trading_pairs = trading_pairs
         self._current_listen_key = None
         self._listen_for_user_stream_task = None
@@ -40,9 +40,10 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
         """
 
         try:
-            ws = DemexWebsocket(self._demex_auth)
+            # ws = DemexWebsocket(self._switcheo_auth)
+            ws = DemexWebsocket()
             await ws.connect()
-            await ws.subscribe(["user.order", "user.trade", "user.balance"])
+            await ws.subscribe(["orders.swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq", "recent_trades", "balances.swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq"])
             async for msg in ws.on_message():
                 # print(f"WS_SOCKET: {msg}")
                 yield msg
@@ -71,6 +72,6 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
                 raise
             except Exception:
                 self.logger().error(
-                    "Unexpected error with Demex WebSocket connection. " "Retrying after 30 seconds...", exc_info=True
+                    "Unexpected error with Switcheo WebSocket connection. " "Retrying after 30 seconds...", exc_info=True
                 )
                 await asyncio.sleep(30.0)

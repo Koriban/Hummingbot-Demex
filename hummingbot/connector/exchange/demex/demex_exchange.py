@@ -13,6 +13,14 @@ import aiohttp
 import math
 import time
 
+# Importing Tradehub Module
+from tradehub.wallet import Wallet
+from tradehub import types
+from tradehub.authenticated_client import AuthenticatedClient
+from tradehub.demex_client import DemexClient
+
+from datetime import datetime
+
 from hummingbot.core.network_iterator import NetworkStatus
 from hummingbot.logger import HummingbotLogger
 from hummingbot.core.clock import Clock
@@ -48,7 +56,7 @@ s_decimal_NaN = Decimal("nan")
 
 class DemexExchange(ExchangeBase):
     """
-    DemexExchange connects with Demex and provides order book pricing, user account tracking and
+    DemexExchange connects with Demex exchange and provides order book pricing, user account tracking and
     trading functionality.
     """
     API_CALL_TIMEOUT = 10.0
@@ -64,21 +72,21 @@ class DemexExchange(ExchangeBase):
         return ctce_logger
 
     def __init__(self,
-                 demex_api_key: str,
-                 demex_secret_key: str,
+                 crypto_com_api_key: str,
+                 crypto_com_secret_key: str,
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True
                  ):
         """
-        :param demex_api_key: The API key to connect to private Crypto.com APIs.
-        :param demex_secret_key: The API secret.
+        :param crypto_com_api_key: The API key to connect to private Demex APIs.
+        :param crypto_com_secret_key: The API secret.
         :param trading_pairs: The market trading pairs which to track order book data.
         :param trading_required: Whether actual trading is needed.
         """
         super().__init__()
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
-        self._demex_auth = DemexAuth(demex_api_key, demex_secret_key)
+        self._demex_auth = DemexAuth(crypto_com_api_key, crypto_com_secret_key)
         self._order_book_tracker = DemexOrderBookTracker(trading_pairs=trading_pairs)
         self._user_stream_tracker = DemexUserStreamTracker(self._demex_auth, trading_pairs)
         self._ev_loop = asyncio.get_event_loop()
@@ -92,6 +100,8 @@ class DemexExchange(ExchangeBase):
         self._user_stream_event_listener_task = None
         self._trading_rules_polling_task = None
         self._last_poll_timestamp = 0
+        mnemonic = "insane once phone negative fly beyond wish video clog deal anger ladder"
+        self.newWallet = Wallet(mnemonic,"mainnet")
 
     @property
     def name(self) -> str:
@@ -219,7 +229,7 @@ class DemexExchange(ExchangeBase):
         """
         try:
             # since there is no ping endpoint, the lowest rate call is to get BTC-USDT ticker
-            await self._api_request("get", "public/get-ticker?instrument_name=BTC_USDT")
+            await self._api_request("get", "get_market?market=swth_eth1")
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -247,12 +257,12 @@ class DemexExchange(ExchangeBase):
             except Exception as e:
                 self.logger().network(f"Unexpected error while fetching trading rules. Error: {str(e)}",
                                       exc_info=True,
-                                      app_warning_msg="Could not fetch new trading rules from Crypto.com. "
+                                      app_warning_msg="Could not fetch new trading rules from Demex. "
                                                       "Check network connection.")
                 await asyncio.sleep(0.5)
 
     async def _update_trading_rules(self):
-        instruments_info = await self._api_request("get", path_url="public/get-instruments")
+        instruments_info = await self._api_request("get", path_url="get_markets")
         self._trading_rules.clear()
         self._trading_rules = self._format_trading_rules(instruments_info)
 
@@ -286,12 +296,13 @@ class DemexExchange(ExchangeBase):
               }
         }
         """
+        # print(instruments_info)
         result = {}
-        for rule in instruments_info["result"]["instruments"]:
+        for rule in instruments_info:
             try:
-                trading_pair = demex_utils.convert_from_exchange_trading_pair(rule["instrument_name"])
-                price_decimals = Decimal(str(rule["price_decimals"]))
-                quantity_decimals = Decimal(str(rule["quantity_decimals"]))
+                trading_pair = demex_utils.convert_from_exchange_trading_pair(rule["name"])
+                price_decimals = Decimal(str(rule["base_precision"]))
+                quantity_decimals = Decimal(str(rule["quote_precision"]))
                 # E.g. a price decimal of 2 means 0.01 incremental.
                 price_step = Decimal("1") / Decimal(str(math.pow(10, price_decimals)))
                 quantity_step = Decimal("1") / Decimal(str(math.pow(10, quantity_decimals)))
@@ -335,16 +346,17 @@ class DemexExchange(ExchangeBase):
             raise NotImplementedError
 
         try:
+            # print(response.text())
             parsed_response = json.loads(await response.text())
         except Exception as e:
             raise IOError(f"Error parsing data from {url}. Error: {str(e)}")
         if response.status != 200:
             raise IOError(f"Error fetching data from {url}. HTTP status is {response.status}. "
                           f"Message: {parsed_response}")
-        if parsed_response["code"] != 0:
-            raise IOError(f"{url} API call failed, response: {parsed_response}")
-        # print(f"REQUEST: {method} {path_url} {params}")
-        # print(f"RESPONSE: {parsed_response}")
+        # if parsed_response["code"] != 0:
+            # raise IOError(f"{url} API call failed, response: {parsed_response}")
+        print(f"REQUEST: {method} {path_url} {params}")
+        print(f"RESPONSE: {parsed_response}")
         return parsed_response
 
     def get_order_price_quantum(self, trading_pair: str, price: Decimal):
@@ -422,6 +434,7 @@ class DemexExchange(ExchangeBase):
         :param order_type: The order type
         :param price: The order price
         """
+        print("inside _create_order")
         if not order_type.is_limit_type():
             raise Exception(f"Unsupported order type: {order_type}")
         trading_rule = self._trading_rules[trading_pair]
@@ -431,6 +444,9 @@ class DemexExchange(ExchangeBase):
         if amount < trading_rule.min_order_size:
             raise ValueError(f"Buy order amount {amount} is lower than the minimum order size "
                              f"{trading_rule.min_order_size}.")
+        create_order_msg = types.CreateOrderMessage(market=demex_utils.convert_to_exchange_trading_pair(trading_pair), side=trade_type.name, quantity=amount, price=price, type="limit")
+        ac = AuthenticatedClient(self.newWallet, None, None, "mainnet")
+        
         api_params = {"instrument_name": demex_utils.convert_to_exchange_trading_pair(trading_pair),
                       "side": trade_type.name,
                       "type": "LIMIT",
@@ -449,8 +465,13 @@ class DemexExchange(ExchangeBase):
                                   order_type
                                   )
         try:
-            order_result = await self._api_request("post", "private/create-order", api_params, True)
-            exchange_order_id = str(order_result["result"]["order_id"])
+            # order_result = await self._api_request("post", "private/create-order", api_params, True)
+            order_result = ac.create_order(create_order_msg)
+            # converting resp to dict
+            res = json.loads(order_result["raw_log"])
+            res = json.loads(res[0]['log'])
+            # print(res['order']['order_id'])
+            exchange_order_id = str(res['order']['order_id'])
             tracked_order = self._in_flight_orders.get(order_id)
             if tracked_order is not None:
                 self.logger().info(f"Created {order_type.name} {trade_type.name} order {order_id} for "
@@ -473,7 +494,7 @@ class DemexExchange(ExchangeBase):
         except Exception as e:
             self.stop_tracking_order(order_id)
             self.logger().network(
-                f"Error submitting {trade_type.name} {order_type.name} order to Crypto.com for "
+                f"Error submitting {trade_type.name} {order_type.name} order to Demex for "
                 f"{amount} {trading_pair} "
                 f"{price}.",
                 exc_info=True,
@@ -525,13 +546,17 @@ class DemexExchange(ExchangeBase):
             if tracked_order.exchange_order_id is None:
                 await tracked_order.get_exchange_order_id()
             ex_order_id = tracked_order.exchange_order_id
-            await self._api_request(
-                "post",
-                "private/cancel-order",
-                {"instrument_name": demex_utils.convert_to_exchange_trading_pair(trading_pair),
-                 "order_id": ex_order_id},
-                True
-            )
+            cancel_msg = types.CancelOrderMessage(id=ex_order_id)
+            ac = AuthenticatedClient(self.newWallet, None, None, "mainnet")
+            ac.cancel_order(cancel_msg)
+            # await self._api_request(
+            #     "post",
+            #     "private/cancel-order",
+            #     {"instrument_name": demex_utils.convert_to_exchange_trading_pair(trading_pair),
+            #      "order_id": ex_order_id},
+            #     True
+            # )
+
             return order_id
         except asyncio.CancelledError:
             raise
@@ -563,7 +588,7 @@ class DemexExchange(ExchangeBase):
                 self.logger().error(str(e), exc_info=True)
                 self.logger().network("Unexpected error while fetching account updates.",
                                       exc_info=True,
-                                      app_warning_msg="Could not fetch account updates from Crypto.com. "
+                                      app_warning_msg="Could not fetch account updates from Demex. "
                                                       "Check API key and network connection.")
                 await asyncio.sleep(0.5)
 
@@ -574,26 +599,28 @@ class DemexExchange(ExchangeBase):
         local_asset_names = set(self._account_balances.keys())
         remote_asset_names = set()
         # account_info = await self._api_request("post", "private/get-account-summary", {}, True)
-        account_info = {
-            "id": 11,
-            "method": "private/get-account-summary",
-            "code": 0,
-            "result": {
-                "accounts": [
-                    {
-                        "balance": 99999999.905000000000000000,
-                        "available": 99999996.905000000000000000,
-                        "order": 3.000000000000000000,
-                        "stake": 0,
-                        "currency": "BTC-USDT"
-                    }
-                ]
-            }
-        }
-        for account in account_info["result"]["accounts"]:
-            asset_name = account["currency"]
+        # account_info = {
+        #     "id": 11,
+        #     "method": "private/get-account-summary",
+        #     "code": 0,
+        #     "result": {
+        #         "accounts": [
+        #             {
+        #                 "balance": 99999999.905000000000000000,
+        #                 "available": 99999996.905000000000000000,
+        #                 "order": 3.000000000000000000,
+        #                 "stake": 0,
+        #                 "currency": "BTC-USDT"
+        #             }
+        #         ]
+        #     }
+        # }
+        
+        account_info = await self._api_request("get", "get_balance?account=swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq", {}, True)
+        for account in account_info.values():
+            asset_name = account["denom"]
             self._account_available_balances[asset_name] = Decimal(str(account["available"]))
-            self._account_balances[asset_name] = Decimal(str(account["balance"]))
+            self._account_balances[asset_name] = Decimal(str(account["available"]))
             remote_asset_names.add(asset_name)
 
         asset_names_to_remove = local_asset_names.difference(remote_asset_names)
@@ -610,13 +637,16 @@ class DemexExchange(ExchangeBase):
 
         if current_tick > last_tick and len(self._in_flight_orders) > 0:
             tracked_orders = list(self._in_flight_orders.values())
+            ac = AuthenticatedClient(self.newWallet, None, None, "mainnet")
+            
             tasks = []
             for tracked_order in tracked_orders:
                 order_id = await tracked_order.get_exchange_order_id()
-                tasks.append(self._api_request("post",
-                                               "private/get-order-detail",
-                                               {"order_id": order_id},
-                                               True))
+                # tasks.append(self._api_request("post",
+                #                                "private/get-order-detail",
+                #                                {"order_id": order_id},
+                #                                True))
+                tasks.append(ac.get_order(order_id))
             self.logger().debug(f"Polling for order status updates of {len(tasks)} orders.")
             responses = await safe_gather(*tasks, return_exceptions=True)
             for response in responses:
@@ -722,13 +752,16 @@ class DemexExchange(ExchangeBase):
             raise Exception("cancel_all can only be used when trading_pairs are specified.")
         cancellation_results = []
         try:
+            ac = AuthenticatedClient(self.newWallet, None, None, "mainnet")
             for trading_pair in self._trading_pairs:
-                await self._api_request(
-                    "post",
-                    "private/cancel-all-orders",
-                    {"instrument_name": demex_utils.convert_to_exchange_trading_pair(trading_pair)},
-                    True
-                )
+                # await self._api_request(
+                #     "post",
+                #     "private/cancel-all-orders",
+                #     {"instrument_name": demex_utils.convert_to_exchange_trading_pair(trading_pair)},
+                #     True
+                # )
+                message=types.CancelAllMessage(market=demex_utils.convert_to_exchange_trading_pair(trading_pair))
+                ac.cancel_all(message)
             open_orders = await self.get_open_orders()
             for cl_order_id, tracked_order in self._in_flight_orders.items():
                 open_order = [o for o in open_orders if o.client_order_id == cl_order_id]
@@ -742,7 +775,7 @@ class DemexExchange(ExchangeBase):
             self.logger().network(
                 "Failed to cancel all orders.",
                 exc_info=True,
-                app_warning_msg="Failed to cancel all orders on Crypto.com. Check API key and network connection."
+                app_warning_msg="Failed to cancel all orders on Demex. Check API key and network connection."
             )
         return cancellation_results
 
@@ -820,29 +853,39 @@ class DemexExchange(ExchangeBase):
                 await asyncio.sleep(5.0)
 
     async def get_open_orders(self) -> List[OpenOrder]:
-        result = await self._api_request(
-            "post",
-            "private/get-open-orders",
-            {},
-            True
-        )
+        # result = await self._api_request(
+        #     "post",
+        #     "private/get-open-orders",
+        #     {},
+        #     True
+        # )
+        mnemonic = "insane once phone negative fly beyond wish video clog deal anger ladder"
+        dc = DemexClient(mnemonic,
+            'mainnet',
+            None,
+            None)
         ret_val = []
-        for order in result["result"]["order_list"]:
+        result = dc.get_open_orders()
+        for order in result.values():
             if demex_utils.HBOT_BROKER_ID not in order["client_oid"]:
                 continue
-            if order["type"] != "LIMIT":
-                raise Exception(f"Unsupported order type {order['type']}")
+            if order["order_type"] != "limit":
+                raise Exception(f"Unsupported order type {order['order_type']}")
+            # Converting tz time to epoch
+            utc_time = datetime.strptime(order["block_created_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            epoch_time = (utc_time - datetime(1970, 1, 1)).total_seconds()
+            order["block_created_at"] = epoch_time
             ret_val.append(
                 OpenOrder(
-                    client_order_id=order["client_oid"],
-                    trading_pair=demex_utils.convert_from_exchange_trading_pair(order["instrument_name"]),
+                    client_order_id=order["order_id"],
+                    trading_pair=demex_utils.convert_from_exchange_trading_pair(order["market"]),
                     price=Decimal(str(order["price"])),
                     amount=Decimal(str(order["quantity"])),
-                    executed_amount=Decimal(str(order["cumulative_quantity"])),
-                    status=order["status"],
+                    executed_amount=Decimal(str(order["filled"])),
+                    status=order["order_status"],
                     order_type=OrderType.LIMIT,
                     is_buy=True if order["side"].lower() == "buy" else False,
-                    time=int(order["create_time"]),
+                    time=int(order["block_created_at"]),
                     exchange_order_id=order["order_id"]
                 )
             )

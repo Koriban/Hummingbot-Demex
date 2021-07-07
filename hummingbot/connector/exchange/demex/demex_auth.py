@@ -6,7 +6,6 @@ from typing import Dict, Any
 class DemexAuth():
     """
     Auth class required by Demex API
-    Learn more at https://docs.switcheo.org/#/?id=authentication
     """
     def __init__(self, api_key: str, secret_key: str):
         self.api_key = api_key
@@ -44,7 +43,7 @@ class DemexAuth():
             payload.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
-        ## print(data) ### DBG PrN
+        print(data)
         return data
 
     def get_headers(self) -> Dict[str, Any]:
