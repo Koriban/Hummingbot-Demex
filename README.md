@@ -12,7 +12,7 @@ conda install -c conda-forge nest-asyncio
 
 
 ============ Quik install =========
-
+'''
 # 1) Install dependencies
 sudo apt-get update
 sudo apt-get install -y build-essential git
@@ -38,7 +38,7 @@ conda activate hummingbot && ./compile
 
 # 7) Start Hummingbot
 bin/hummingbot.py
-
+'''
 
 ----
 [![License](https://img.shields.io/badge/License-Apache%202.0-informational.svg)](https://github.com/CoinAlpha/hummingbot/blob/master/LICENSE)
