@@ -4,7 +4,12 @@ Note this adds a connector to the Demex Exchange, Consume as per normal.
 
 PC LOAD LETTER, it bliked
 
-![Hummingbot](https://i.ibb.co/X5zNkKw/blacklogo-with-text.png)
+============ Dev Note ================
+Make sure nest-asyncio is installed, (it sometimes is not installed by the setup scripts)
+
+conda install -c conda-forge nest-asyncio
+
+
 
 ----
 [![License](https://img.shields.io/badge/License-Apache%202.0-informational.svg)](https://github.com/CoinAlpha/hummingbot/blob/master/LICENSE)
