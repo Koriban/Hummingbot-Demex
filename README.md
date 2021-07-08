@@ -5,6 +5,7 @@ Note this adds a connector to the Demex Exchange, Consume as per normal.
 PC LOAD LETTER, it bliked
 
 ============ Dev Note ================
+
 Make sure nest-asyncio is installed, (it sometimes is not installed by the setup scripts)
 
 conda install -c conda-forge nest-asyncio
