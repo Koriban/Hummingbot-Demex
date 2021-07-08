@@ -12,33 +12,41 @@ conda install -c conda-forge nest-asyncio
 
 
 ============ Quik install =========
-'''
-# 1) Install dependencies
+
+1) Install dependencies
+
 sudo apt-get update
 sudo apt-get install -y build-essential git
 
-# 2) Install Miniconda3
+2) Install Miniconda3
+
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 
-# 3) Reload .bashrc to register "conda" command
+3) Reload .bashrc to register "conda" command
+
 exec bash
 
-# 3.5) make sure nest-asyncio in available. 
+3.5) make sure nest-asyncio in available. 
+
 conda install -c conda-forge nest-asyncio
 
-# 4) Clone Hummingbot-Demex
+4) Clone Hummingbot-Demex
+
 git clone https://github.com/Koriban/Hummingbot-Demex.git
 
-# 5) Install Hummingbot
+5) Install Hummingbot
+
 cd hummingbot && ./clean && ./install
 
-# 6) Activate environment and compile code
+6) Activate environment and compile code
+
 conda activate hummingbot && ./compile
 
-# 7) Start Hummingbot
+7) Start Hummingbot
+
 bin/hummingbot.py
-'''
+
 
 ----
 [![License](https://img.shields.io/badge/License-Apache%202.0-informational.svg)](https://github.com/CoinAlpha/hummingbot/blob/master/LICENSE)
