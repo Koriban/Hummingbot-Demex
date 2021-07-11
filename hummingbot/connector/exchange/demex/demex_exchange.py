@@ -72,21 +72,21 @@ class DemexExchange(ExchangeBase):
         return ctce_logger
 
     def __init__(self,
-                 crypto_com_api_key: str,
-                 crypto_com_secret_key: str,
+                 #crypto_com_api_key: str,
+                 demex_secret_key: str,
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True
                  ):
         """
-        :param crypto_com_api_key: The API key to connect to private Demex APIs.
-        :param crypto_com_secret_key: The API secret.
+        :param demex_api_key: The API key to connect to private Demex APIs. (This is not used)
+        :param demex_secret_key: The API secret.
         :param trading_pairs: The market trading pairs which to track order book data.
         :param trading_required: Whether actual trading is needed.
         """
         super().__init__()
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
-        self._demex_auth = DemexAuth(crypto_com_api_key, crypto_com_secret_key)
+        self._demex_auth = DemexAuth(demex_secret_key)
         self._order_book_tracker = DemexOrderBookTracker(trading_pairs=trading_pairs)
         self._user_stream_tracker = DemexUserStreamTracker(self._demex_auth, trading_pairs)
         self._ev_loop = asyncio.get_event_loop()

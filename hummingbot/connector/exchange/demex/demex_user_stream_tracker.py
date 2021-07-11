@@ -31,10 +31,10 @@ class DemexUserStreamTracker(UserStreamTracker):
         return cls._bust_logger
 
     def __init__(self,
-                 crypto_com_auth: Optional[DemexAuth] = None,
+                 demex_auth: Optional[DemexAuth] = None,
                  trading_pairs: Optional[List[str]] = []):
         super().__init__()
-        self._demex_auth: DemexAuth = crypto_com_auth
+        self._demex_auth: DemexAuth = demex_auth
         self._trading_pairs: List[str] = trading_pairs
         self._ev_loop: asyncio.events.AbstractEventLoop = asyncio.get_event_loop()
         self._data_source: Optional[UserStreamTrackerDataSource] = None
@@ -49,7 +49,7 @@ class DemexUserStreamTracker(UserStreamTracker):
         """
         if not self._data_source:
             self._data_source = DemexAPIUserStreamDataSource(
-                crypto_com_auth=self._demex_auth,
+                demex_auth=self._demex_auth,
                 trading_pairs=self._trading_pairs
             )
         return self._data_source

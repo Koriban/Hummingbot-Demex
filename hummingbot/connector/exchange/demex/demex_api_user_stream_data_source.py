@@ -22,8 +22,8 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
             cls._logger = logging.getLogger(__name__)
         return cls._logger
 
-    def __init__(self, crypto_com_auth: DemexAuth, trading_pairs: Optional[List[str]] = []):
-        self._demex_auth: DemexAuth = crypto_com_auth
+    def __init__(self, demex_auth: DemexAuth, trading_pairs: Optional[List[str]] = []):
+        self._demex_auth: DemexAuth = demex_auth
         self._trading_pairs = trading_pairs
         self._current_listen_key = None
         self._listen_for_user_stream_task = None
