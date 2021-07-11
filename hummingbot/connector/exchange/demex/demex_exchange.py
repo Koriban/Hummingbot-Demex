@@ -72,7 +72,7 @@ class DemexExchange(ExchangeBase):
         return ctce_logger
 
     def __init__(self,
-                 #crypto_com_api_key: str,
+                 demex_api_key: str,
                  demex_secret_key: str,
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True
@@ -86,7 +86,7 @@ class DemexExchange(ExchangeBase):
         super().__init__()
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
-        self._demex_auth = DemexAuth(demex_secret_key)
+        self._demex_auth = DemexAuth(demex_api_key, demex_secret_key)
         self._order_book_tracker = DemexOrderBookTracker(trading_pairs=trading_pairs)
         self._user_stream_tracker = DemexUserStreamTracker(self._demex_auth, trading_pairs)
         self._ev_loop = asyncio.get_event_loop()
@@ -100,7 +100,7 @@ class DemexExchange(ExchangeBase):
         self._user_stream_event_listener_task = None
         self._trading_rules_polling_task = None
         self._last_poll_timestamp = 0
-        mnemonic = "insane once phone negative fly beyond wish video clog deal anger ladder"
+        mnemonic = ""
         self.newWallet = Wallet(mnemonic,"mainnet")
 
     @property
