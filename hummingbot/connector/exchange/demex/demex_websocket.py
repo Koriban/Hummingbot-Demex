@@ -11,14 +11,14 @@ from hummingbot.core.utils.async_utils import safe_ensure_future
 from typing import Optional, AsyncIterable, Any, List
 from websockets.exceptions import ConnectionClosed
 from hummingbot.logger import HummingbotLogger
-from hummingbot.connector.exchange.demex.demex_auth import DemexAuth
+from hummingbot.connector.exchange.demex.demex_auth import DemexComAuth
 from hummingbot.connector.exchange.demex.demex_utils import RequestId, get_ms_timestamp
 
 # reusable websocket class
 # ToDo: We should eventually remove this class, and instantiate web socket connection normally (see Binance for example)
 
 
-class DemexWebsocket(RequestId):
+class DemexComWebsocket(RequestId):
     MESSAGE_TIMEOUT = 30.0
     PING_TIMEOUT = 10.0
     _logger: Optional[HummingbotLogger] = None
@@ -29,8 +29,8 @@ class DemexWebsocket(RequestId):
             cls._logger = logging.getLogger(__name__)
         return cls._logger
 
-    def __init__(self, auth: Optional[DemexAuth] = None):
-        self._auth: Optional[DemexAuth] = auth
+    def __init__(self, auth: Optional[DemexComAuth] = None):
+        self._auth: Optional[DemexComAuth] = auth
         self._isPrivate = True if self._auth is not None else False
         self._WS_URL = constants.WSS_PRIVATE_URL if self._isPrivate else constants.WSS_PUBLIC_URL
         self._client: Optional[websockets.WebSocketClientProtocol] = None

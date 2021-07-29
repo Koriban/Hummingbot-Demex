@@ -20,6 +20,7 @@ from tradehub.authenticated_client import AuthenticatedClient
 from tradehub.demex_client import DemexClient
 
 from datetime import datetime
+from hummingbot.connector.exchange.demex import demex_auth
 
 from hummingbot.core.network_iterator import NetworkStatus
 from hummingbot.logger import HummingbotLogger
@@ -43,10 +44,10 @@ from hummingbot.core.event.events import (
     TradeFee
 )
 from hummingbot.connector.exchange_base import ExchangeBase
-from hummingbot.connector.exchange.demex.demex_order_book_tracker import DemexOrderBookTracker
-from hummingbot.connector.exchange.demex.demex_user_stream_tracker import DemexUserStreamTracker
-from hummingbot.connector.exchange.demex.demex_auth import DemexAuth
-from hummingbot.connector.exchange.demex.demex_in_flight_order import DemexInFlightOrder
+from hummingbot.connector.exchange.demex.demex_order_book_tracker import DemexComOrderBookTracker
+from hummingbot.connector.exchange.demex.demex_user_stream_tracker import DemexComUserStreamTracker
+from hummingbot.connector.exchange.demex.demex_auth import DemexComAuth
+from hummingbot.connector.exchange.demex.demex_in_flight_order import DemexComInFlightOrder
 from hummingbot.connector.exchange.demex import demex_utils
 from hummingbot.connector.exchange.demex import demex_constants as Constants
 from hummingbot.core.data_type.common import OpenOrder
@@ -56,7 +57,7 @@ s_decimal_NaN = Decimal("nan")
 
 class DemexExchange(ExchangeBase):
     """
-    DemexExchange connects with Demex exchange and provides order book pricing, user account tracking and
+    DemexComExchange connects with Demex.com exchange and provides order book pricing, user account tracking and
     trading functionality.
     """
     API_CALL_TIMEOUT = 10.0
@@ -72,36 +73,38 @@ class DemexExchange(ExchangeBase):
         return ctce_logger
 
     def __init__(self,
-                 demex_api_key: str,
-                 demex_secret_key: str,
+                 demex_com_api_key: str,
+                 demex_com_secret_key: str,
+                 demex_mnemonic: str,
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True
                  ):
         """
-        :param demex_api_key: The API key to connect to private Demex APIs. (This is not used)
-        :param demex_secret_key: The API secret.
+        :param demex_com_api_key: The API key to connect to private Demex.com APIs.
+        :param demex_com_secret_key: The API secret.
         :param trading_pairs: The market trading pairs which to track order book data.
         :param trading_required: Whether actual trading is needed.
         """
         super().__init__()
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
-        self._demex_auth = DemexAuth(demex_api_key, demex_secret_key)
-        self._order_book_tracker = DemexOrderBookTracker(trading_pairs=trading_pairs)
-        self._user_stream_tracker = DemexUserStreamTracker(self._demex_auth, trading_pairs)
+        self._demex_auth = DemexComAuth(demex_com_api_key, demex_com_secret_key, demex_mnemonic)
+        self._order_book_tracker = DemexComOrderBookTracker(trading_pairs=trading_pairs)
+        self._user_stream_tracker = DemexComUserStreamTracker(self._demex_auth, trading_pairs)
+        self._wallet_address = self._demex_auth.generateWalletAddress()
         self._ev_loop = asyncio.get_event_loop()
         self._shared_client = None
         self._poll_notifier = asyncio.Event()
         self._last_timestamp = 0
-        self._in_flight_orders = {}  # Dict[client_order_id:str, DemexInFlightOrder]
+        self._in_flight_orders = {}  # Dict[client_order_id:str, DemexComInFlightOrder]
         self._order_not_found_records = {}  # Dict[client_order_id:str, count:int]
         self._trading_rules = {}  # Dict[trading_pair:str, TradingRule]
         self._status_polling_task = None
         self._user_stream_event_listener_task = None
         self._trading_rules_polling_task = None
         self._last_poll_timestamp = 0
-        mnemonic = ""
-        self.newWallet = Wallet(mnemonic,"mainnet")
+        self.mnemonic = demex_mnemonic
+        self.newWallet = Wallet(demex_mnemonic,"mainnet")
 
     @property
     def name(self) -> str:
@@ -116,7 +119,7 @@ class DemexExchange(ExchangeBase):
         return self._trading_rules
 
     @property
-    def in_flight_orders(self) -> Dict[str, DemexInFlightOrder]:
+    def in_flight_orders(self) -> Dict[str, DemexComInFlightOrder]:
         return self._in_flight_orders
 
     @property
@@ -165,7 +168,7 @@ class DemexExchange(ExchangeBase):
         :param saved_states: The saved tracking_states.
         """
         self._in_flight_orders.update({
-            key: DemexInFlightOrder.from_json(value)
+            key: DemexComInFlightOrder.from_json(value)
             for key, value in saved_states.items()
         })
 
@@ -355,8 +358,8 @@ class DemexExchange(ExchangeBase):
                           f"Message: {parsed_response}")
         # if parsed_response["code"] != 0:
             # raise IOError(f"{url} API call failed, response: {parsed_response}")
-        print(f"REQUEST: {method} {path_url} {params}")
-        print(f"RESPONSE: {parsed_response}")
+        # print(f"REQUEST: {method} {path_url} {params}")
+        # print(f"RESPONSE: {parsed_response}")
         return parsed_response
 
     def get_order_price_quantum(self, trading_pair: str, price: Decimal):
@@ -434,7 +437,7 @@ class DemexExchange(ExchangeBase):
         :param order_type: The order type
         :param price: The order price
         """
-        print("inside _create_order")
+        # print("inside _create_order")
         if not order_type.is_limit_type():
             raise Exception(f"Unsupported order type: {order_type}")
         trading_rule = self._trading_rules[trading_pair]
@@ -514,7 +517,7 @@ class DemexExchange(ExchangeBase):
         """
         Starts tracking an order by simply adding it into _in_flight_orders dictionary.
         """
-        self._in_flight_orders[order_id] = DemexInFlightOrder(
+        self._in_flight_orders[order_id] = DemexComInFlightOrder(
             client_order_id=order_id,
             exchange_order_id=exchange_order_id,
             trading_pair=trading_pair,
@@ -616,7 +619,7 @@ class DemexExchange(ExchangeBase):
         #     }
         # }
         
-        account_info = await self._api_request("get", "get_balance?account=swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq", {}, True)
+        account_info = await self._api_request("get", f"get_balance?account={self._wallet_address}", {}, True)
         for account in account_info.values():
             asset_name = account["denom"]
             self._account_available_balances[asset_name] = Decimal(str(account["available"]))
@@ -640,38 +643,46 @@ class DemexExchange(ExchangeBase):
             ac = AuthenticatedClient(self.newWallet, None, None, "mainnet")
             
             tasks = []
+            responses = []
             for tracked_order in tracked_orders:
                 order_id = await tracked_order.get_exchange_order_id()
                 # tasks.append(self._api_request("post",
                 #                                "private/get-order-detail",
                 #                                {"order_id": order_id},
                 #                                True))
-                tasks.append(ac.get_order(order_id))
+                # tasks.append(ac.get_order(order_id))
+                data = ac.get_order(order_id)
+                data["fee"] = 0.1
+                responses.append(data)
             self.logger().debug(f"Polling for order status updates of {len(tasks)} orders.")
-            responses = await safe_gather(*tasks, return_exceptions=True)
+            # responses = await safe_gather(*tasks, return_exceptions=True)
+            
             for response in responses:
                 if isinstance(response, Exception):
                     raise response
-                if "result" not in response:
+                if "order_id" not in response:
                     self.logger().info(f"_update_order_status result not in resp: {response}")
                     continue
-                result = response["result"]
-                if "trade_list" in result:
-                    for trade_msg in result["trade_list"]:
-                        await self._process_trade_message(trade_msg)
-                self._process_order_message(result["order_info"])
+                # result = response["result"]
+                # if "trade_list" in result:
+                    # for trade_msg in result["trade_list"]:
+                        # await self._process_trade_message(trade_msg)
+                await self._process_trade_message(response)
+                # self._process_order_message(result["order_info"])
+                self._process_order_message(response)
 
     def _process_order_message(self, order_msg: Dict[str, Any]):
         """
         Updates in-flight order and triggers cancellation or failure event if needed.
         :param order_msg: The order response from either REST or web socket API (they are of the same format)
         """
-        client_order_id = order_msg["client_oid"]
+        client_order_id = order_msg["order_id"]
         if client_order_id not in self._in_flight_orders:
             return
         tracked_order = self._in_flight_orders[client_order_id]
+        print(f"tracked_order - {tracked_order}")
         # Update order execution status
-        tracked_order.last_state = order_msg["status"]
+        tracked_order.last_state = order_msg["order_status"]
         if tracked_order.is_cancelled:
             self.logger().info(f"Successfully cancelled order {client_order_id}.")
             self.trigger_event(MarketEvent.OrderCancelled,
@@ -713,9 +724,10 @@ class DemexExchange(ExchangeBase):
                 tracked_order.trading_pair,
                 tracked_order.trade_type,
                 tracked_order.order_type,
-                Decimal(str(trade_msg["traded_price"])),
-                Decimal(str(trade_msg["traded_quantity"])),
-                TradeFee(0.0, [(trade_msg["fee_currency"], Decimal(str(trade_msg["fee"])))]),
+                Decimal(str(trade_msg["price"])),
+                Decimal(str(trade_msg["quantity"])),
+                # TradeFee(0.0, [(trade_msg["fee_denom"], Decimal(str(trade_msg["fee_amount"])))]),
+                TradeFee(0.0, [(trade_msg["allocated_margin_denom"], 0.1)]),
                 exchange_trade_id=trade_msg["order_id"]
             )
         )
@@ -820,31 +832,31 @@ class DemexExchange(ExchangeBase):
                 self.logger().network(
                     "Unknown error. Retrying after 1 seconds.",
                     exc_info=True,
-                    app_warning_msg="Could not fetch user events from Demex. Check API key and network connection."
+                    app_warning_msg="Could not fetch user events from DemexCom. Check API key and network connection."
                 )
                 await asyncio.sleep(1.0)
 
     async def _user_stream_event_listener(self):
         """
         Listens to message in _user_stream_tracker.user_stream queue. The messages are put in by
-        DemexAPIUserStreamDataSource.
+        DemexComAPIUserStreamDataSource.
         """
         async for event_message in self._iter_user_event_queue():
             try:
                 if "result" not in event_message or "channel" not in event_message["result"]:
                     continue
                 channel = event_message["result"]["channel"]
-                if "user.trade" in channel:
-                    for trade_msg in event_message["result"]["data"]:
+                if "account_trades" in channel:
+                    for trade_msg in event_message["result"]:
                         await self._process_trade_message(trade_msg)
-                elif "user.order" in channel:
-                    for order_msg in event_message["result"]["data"]:
+                elif "orders" in channel:
+                    for order_msg in event_message["result"]:
                         self._process_order_message(order_msg)
-                elif channel == "user.balance":
-                    balances = event_message["result"]["data"]
+                elif "balances" in channel:
+                    balances = event_message["result"]
                     for balance_entry in balances:
-                        asset_name = balance_entry["currency"]
-                        self._account_balances[asset_name] = Decimal(str(balance_entry["balance"]))
+                        asset_name = balance_entry["denom"]
+                        self._account_balances[asset_name] = Decimal(str(balance_entry["available"]))
                         self._account_available_balances[asset_name] = Decimal(str(balance_entry["available"]))
             except asyncio.CancelledError:
                 raise
@@ -859,8 +871,8 @@ class DemexExchange(ExchangeBase):
         #     {},
         #     True
         # )
-        mnemonic = "insane once phone negative fly beyond wish video clog deal anger ladder"
-        dc = DemexClient(mnemonic,
+        # mnemonic = "insane once phone negative fly beyond wish video clog deal anger ladder"
+        dc = DemexClient(self.mnemonic,
             'mainnet',
             None,
             None)

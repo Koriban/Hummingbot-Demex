@@ -6,11 +6,11 @@ import logging
 from typing import Optional, List, AsyncIterable, Any
 from hummingbot.core.data_type.user_stream_tracker_data_source import UserStreamTrackerDataSource
 from hummingbot.logger import HummingbotLogger
-from .demex_auth import DemexAuth
-from .demex_websocket import DemexWebsocket
+from .demex_auth import DemexComAuth
+from .demex_websocket import DemexComWebsocket
 
 
-class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
+class DemexComAPIUserStreamDataSource(UserStreamTrackerDataSource):
     MAX_RETRIES = 20
     MESSAGE_TIMEOUT = 30.0
 
@@ -22,8 +22,10 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
             cls._logger = logging.getLogger(__name__)
         return cls._logger
 
-    def __init__(self, demex_auth: DemexAuth, trading_pairs: Optional[List[str]] = []):
-        self._demex_auth: DemexAuth = demex_auth
+    def __init__(self, demex_com_auth: DemexComAuth, trading_pairs: Optional[List[str]] = []):
+        self._demex_auth: DemexComAuth = demex_com_auth
+        # print("test ==> ",self._demex_auth.generateWalletAddress())
+        self._wallet_address = self._demex_auth.generateWalletAddress()
         self._trading_pairs = trading_pairs
         self._current_listen_key = None
         self._listen_for_user_stream_task = None
@@ -40,10 +42,10 @@ class DemexAPIUserStreamDataSource(UserStreamTrackerDataSource):
         """
 
         try:
-            # ws = DemexWebsocket(self._demex_auth)
-            ws = DemexWebsocket()
+            # ws = DemexComWebsocket(self._demex_auth)
+            ws = DemexComWebsocket()
             await ws.connect()
-            await ws.subscribe(["orders.swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq", "recent_trades", "balances.swth1sr7tad3kvj4ku3jagtdaap250x59ee3pfzfufq"])
+            await ws.subscribe([f"orders.{self._wallet_address}", f"account_trades.{self._wallet_address}", f"balances.{self._wallet_address}"])
             async for msg in ws.on_message():
                 # print(f"WS_SOCKET: {msg}")
                 yield msg

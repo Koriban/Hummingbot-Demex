@@ -75,16 +75,22 @@ def get_api_reason(code: str) -> str:
 
 
 KEYS = {
-    "demex_api_key":
-        ConfigVar(key="demex_api_key",
-                  prompt="Enter your Demex API key (Just press enter here) >>> ",
+    "demex_com_api_key":
+        ConfigVar(key="demex_com_api_key",
+                  prompt="Enter your Demex.com API key >>> ",
+                  required_if=using_exchange("demex_com"),
+                  is_secure=True,
+                  is_connect_key=False),
+    "demex_com_secret_key":
+        ConfigVar(key="demex_com_secret_key",
+                  prompt="Enter your Demex.com secret key >>> ",
+                  required_if=using_exchange("demex_com"),
+                  is_secure=True,
+                  is_connect_key=False),
+    "demex_mnemonic":
+        ConfigVar(key="demex_mnemonic",
+                  prompt="Enter your demex mnemonic >>> ",
                   required_if=using_exchange("demex"),
                   is_secure=True,
-                  is_connect_key=True),
-    "demex_secret_key":
-        ConfigVar(key="demex_secret_key",
-                  prompt="Enter your Demex secret key >>> ",
-                  required_if=using_exchange("demex"),
-                  is_secure=True,
-                  is_connect_key=True),
+                  is_connect_key=True)
 }

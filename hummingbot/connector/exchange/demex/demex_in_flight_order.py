@@ -12,7 +12,7 @@ from hummingbot.core.event.events import (
 from hummingbot.connector.in_flight_order_base import InFlightOrderBase
 
 
-class DemexInFlightOrder(InFlightOrderBase):
+class DemexComInFlightOrder(InFlightOrderBase):
     def __init__(self,
                  client_order_id: str,
                  exchange_order_id: Optional[str],
@@ -62,7 +62,7 @@ class DemexInFlightOrder(InFlightOrderBase):
         :param data: json data from API
         :return: formatted InFlightOrder
         """
-        retval = DemexInFlightOrder(
+        retval = DemexComInFlightOrder(
             data["client_order_id"],
             data["exchange_order_id"],
             data["trading_pair"],
@@ -84,16 +84,18 @@ class DemexInFlightOrder(InFlightOrderBase):
         Updates the in flight order with trade update (from private/get-order-detail end point)
         return: True if the order gets updated otherwise False
         """
-        trade_id = trade_update["trade_id"]
+        trade_id = trade_update["order_id"]
         # trade_update["orderId"] is type int
         if str(trade_update["order_id"]) != self.exchange_order_id or trade_id in self.trade_id_set:
             # trade already recorded
             return False
         self.trade_id_set.add(trade_id)
-        self.executed_amount_base += Decimal(str(trade_update["traded_quantity"]))
+        # self.executed_amount_base += Decimal(str(trade_update["traded_quantity"]))
+        self.executed_amount_base += Decimal(str(trade_update["quantity"]))
         self.fee_paid += Decimal(str(trade_update["fee"]))
-        self.executed_amount_quote += (Decimal(str(trade_update["traded_price"])) *
-                                       Decimal(str(trade_update["traded_quantity"])))
+        # self.executed_amount_quote += (Decimal(str(trade_update["traded_price"])) *
+        #                                Decimal(str(trade_update["traded_quantity"])))
+        self.executed_amount_quote += (Decimal(str(trade_update["price"])) * Decimal(str(trade_update["quantity"])))
         if not self.fee_asset:
-            self.fee_asset = trade_update["fee_currency"]
+            self.fee_asset = trade_update["allocated_margin_denom"]
         return True

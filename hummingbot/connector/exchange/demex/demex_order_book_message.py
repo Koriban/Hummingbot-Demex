@@ -13,7 +13,7 @@ from hummingbot.core.data_type.order_book_message import (
 )
 
 
-class DemexOrderBookMessage(OrderBookMessage):
+class DemexComOrderBookMessage(OrderBookMessage):
     def __new__(
         cls,
         message_type: OrderBookMessageType,
@@ -27,7 +27,7 @@ class DemexOrderBookMessage(OrderBookMessage):
                 raise ValueError("timestamp must not be None when initializing snapshot messages.")
             timestamp = content["timestamp"]
 
-        return super(DemexOrderBookMessage, cls).__new__(
+        return super(DemexComOrderBookMessage, cls).__new__(
             cls, message_type, content, timestamp=timestamp, *args, **kwargs
         )
 

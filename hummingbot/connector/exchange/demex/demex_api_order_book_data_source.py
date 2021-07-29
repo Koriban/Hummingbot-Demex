@@ -19,9 +19,9 @@ from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTr
 from hummingbot.core.utils.async_utils import safe_gather
 from hummingbot.logger import HummingbotLogger
 from . import demex_utils
-from .demex_active_order_tracker import DemexActiveOrderTracker
-from .demex_order_book import DemexOrderBook
-from .demex_websocket import DemexWebsocket
+from .demex_active_order_tracker import DemexComActiveOrderTracker
+from .demex_order_book import DemexComOrderBook
+from .demex_websocket import DemexComWebsocket
 from .demex_utils import ms_timestamp_to_s
 
 
@@ -51,20 +51,12 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             resp = await client.get(f"{constants.REST_URL}/get_market_stats")
             resp_json = await resp.json()
             for t_pair in trading_pairs:
-                print(t_pair)
-                # print(o)
-                temp = t_pair.lower()
-                print(temp)
-                for o in resp_json:
-                    print(o)
-                    if o["market"] == demex_utils.convert_to_exchange_trading_pair(temp):
-                         print("true - " , o["market"])
                 last_trade = [o["last_price"] for o in resp_json if o["market"] ==
-                              demex_utils.convert_to_exchange_trading_pair(temp)]
-                print("last_trade - ", last_trade)
+                              demex_utils.convert_to_exchange_trading_pair(t_pair)]
+                # print("last_trade - ", last_trade)
                 if last_trade and last_trade[0] is not None:
                     result[t_pair] = last_trade[0]
-            print("tested - ",result)
+                # print(f"result - {result}")
         return result
 
     @staticmethod
@@ -103,37 +95,30 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             # print(orderbook_data)
             asks = []
             bids = []
-            for key,val in orderbook_data[0].items():
-                if key == "asks":
-                    for temp in val:
-                        asks.append(list(temp.values()))
-                elif key == "bids":
-                    for temp in val:
-                        bids.append(list(temp.values()))
+            for temp in orderbook_data[0]["asks"]:
+                asks.append(list(temp.values()))
+            for temp in orderbook_data[0]["bids"]:
+                bids.append(list(temp.values()))
 
             orderbook_data[0]["asks"] = asks
             orderbook_data[0]["bids"] = bids
-            # orderbook_data = orderbook_data[0]["result"]["data"][0]
             orderbook_data = orderbook_data[0]
-            # print("------------------------")
-            # print(orderbook_data)
-            # print("------------------------")
 
         return orderbook_data 
 
     async def get_new_order_book(self, trading_pair: str) -> OrderBook:
         snapshot: Dict[str, Any] = await self.get_order_book_data(trading_pair)
         snapshot_timestamp: float = time.time()
-        snapshot_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
+        snapshot_msg: OrderBookMessage = DemexComOrderBook.snapshot_message_from_exchange(
             snapshot,
             snapshot_timestamp,
             metadata={"trading_pair": trading_pair}
         )
         order_book = self.order_book_create_function()
-        active_order_tracker: DemexActiveOrderTracker = DemexActiveOrderTracker()
+        active_order_tracker: DemexComActiveOrderTracker = DemexComActiveOrderTracker()
         bids, asks = active_order_tracker.convert_snapshot_message_to_order_book_row(snapshot_msg)
         order_book.apply_snapshot(bids, asks, snapshot_msg.update_id)
-        # print("Hello from demex Connector")
+        # print("Hello from Demex Connector")
         return order_book
 
     async def listen_for_trades(self, ev_loop: asyncio.BaseEventLoop, output: asyncio.Queue):
@@ -142,22 +127,8 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         """
         while True:
             try:
-                # response = {}
-                # async def on_connect():
-                #     print("I am connect to demex websocket!")
-                #     # await demex.subscribe_books("orderbook", "swth_eth1")
-                #     await demex.get_recent_trades('recent_trades', demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
 
-                # async def on_receive_message(message: dict):
-                #     print("I received a message")
-                #     # print(message)
-                #     response = message
-
-                # demex: DemexWebsocket = DemexWebsocket(constants.WSS_PUBLIC_URL)
-                # asyncio.get_event_loop().run_until_complete(demex.connect(on_receive_message, on_connect))
-
-
-                ws = DemexWebsocket()
+                ws = DemexComWebsocket()
                 await ws.connect()
 
                 await ws.subscribe(list(map(
@@ -175,7 +146,7 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
                     trade["block_created_at"] = epoch_time
                     trade: Dict[Any] = trade
                     trade_timestamp: int = ms_timestamp_to_s(trade["block_created_at"])
-                    trade_msg: OrderBookMessage = DemexOrderBook.trade_message_from_exchange(
+                    trade_msg: OrderBookMessage = DemexComOrderBook.trade_message_from_exchange(
                         trade,
                         trade_timestamp,
                         metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(trade["market"])}
@@ -196,7 +167,7 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         """
         while True:
             try:
-                ws = DemexWebsocket()
+                ws = DemexComWebsocket()
                 await ws.connect()
 
                 await ws.subscribe(list(map(
@@ -204,73 +175,22 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
                     self._trading_pairs
                 )))
 
-                # async def on_connect():
-                #     print("I am connect to demex websocket!")
-                #     # await demex.subscribe_books("orderbook", "swth_eth1")
-                #     list(map(
-                #         lambda pair: f"book.{demex_utils.convert_to_exchange_trading_pair(pair)}.150",
-                #         self._trading_pairs
-                #     ))
-                #     # await demex.get_recent_trades('recent_trades', demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
-                #     # await demex.subscribe_books("offerbook",  demex_utils.convert_to_exchange_trading_pair(self._trading_pairs[0]))
-
-                # async def on_receive_message(message: dict):
-                #     epoch = time.time()
-                #     print("I received a message")
-                #     # print(message)
-                #     asks = []
-                #     bids = []
-                #     res = {}
-
-                #     if len(message["result"]) > 1:
-                #         for data in message["result"]: 
-                #             market = data["market"]
-                #             if data["side"] == "buy":
-                #                 bids.append([data["price"],data["amount"]])
-                #             elif data["side"] == "sell":
-                #                 asks.append([data["price"],data["amount"]])
-                #         # print(asks[0], "\n", bids[0])
-                        
-                #         res["asks"] = asks[0]
-                #         res["bids"] = bids[0]
-                #     # if response.get("result") is None:
-                #     #     continue
-
-                #     order_book_data = res
-                #     timestamp: int = ms_timestamp_to_s(epoch)
-                #     # timestamp: int = ms_timestamp_to_s(order_book_data["t"])
-
-                #     # data in this channel is not order book diff but the entire order book (up to depth 150).
-                #     # so we need to convert it into a order book snapshot.
-                #     # Demex does not offer order book diff ws updates.
-                #     orderbook_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
-                #         order_book_data,
-                #         timestamp,
-                #         metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(
-                #             market)}
-                #     )
-                #     print("Hello from demex Connector 2")
-                #     output.put_nowait(orderbook_msg)
-
-                # demex: DemexWebsocket = DemexWebsocket(constants.WSS_PUBLIC_URL)
-                # asyncio.get_event_loop().run_until_complete(demex.connect(on_receive_message, on_connect))
-
                 async for response in ws.on_message():
                     if response.get("result") is None:
                         continue
                     
                     order_book_data = response["result"]["data"][0]
-                    timestamp: int = ms_timestamp_to_s(order_book_data["t"])
+                    timestamp: int = ms_timestamp_to_s(time.time())
                     # data in this channel is not order book diff but the entire order book (up to depth 150).
                     # so we need to convert it into a order book snapshot.
-                    # Demex does not offer order book diff ws updates.
-                    orderbook_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
+                    # Demex.com does not offer order book diff ws updates.
+                    orderbook_msg: OrderBookMessage = DemexComOrderBook.snapshot_message_from_exchange(
                         order_book_data,
                         timestamp,
                         metadata={"trading_pair": demex_utils.convert_from_exchange_trading_pair(
                             response["result"]["instrument_name"])}
                     )
-                    # print("Hello from demex Connector 2")
+                    # print("Hello from Demex Connector 2")
                     output.put_nowait(orderbook_msg)
 
             except asyncio.CancelledError:
@@ -297,7 +217,7 @@ class DemexAPIOrderBookDataSource(OrderBookTrackerDataSource):
                         snapshot: Dict[str, any] = await self.get_order_book_data(trading_pair)
                         # snapshot_timestamp: int = ms_timestamp_to_s(snapshot["t"])
                         snapshot_timestamp: int = ms_timestamp_to_s(time.time()) # set the timestamp static for now
-                        snapshot_msg: OrderBookMessage = DemexOrderBook.snapshot_message_from_exchange(
+                        snapshot_msg: OrderBookMessage = DemexComOrderBook.snapshot_message_from_exchange(
                             snapshot,
                             snapshot_timestamp,
                             metadata={"trading_pair": trading_pair}

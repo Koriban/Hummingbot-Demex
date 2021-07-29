@@ -16,12 +16,12 @@ from hummingbot.core.utils.async_utils import (
     safe_gather,
 )
 from hummingbot.connector.exchange.demex.demex_api_user_stream_data_source import \
-    DemexAPIUserStreamDataSource
-from hummingbot.connector.exchange.demex.demex_auth import DemexAuth
+    DemexComAPIUserStreamDataSource
+from hummingbot.connector.exchange.demex.demex_auth import DemexComAuth
 from hummingbot.connector.exchange.demex.demex_constants import EXCHANGE_NAME
 
 
-class DemexUserStreamTracker(UserStreamTracker):
+class DemexComUserStreamTracker(UserStreamTracker):
     _cbpust_logger: Optional[HummingbotLogger] = None
 
     @classmethod
@@ -31,10 +31,10 @@ class DemexUserStreamTracker(UserStreamTracker):
         return cls._bust_logger
 
     def __init__(self,
-                 demex_auth: Optional[DemexAuth] = None,
+                 demex_com_auth: Optional[DemexComAuth] = None,
                  trading_pairs: Optional[List[str]] = []):
         super().__init__()
-        self._demex_auth: DemexAuth = demex_auth
+        self._demex_auth: DemexComAuth = demex_com_auth
         self._trading_pairs: List[str] = trading_pairs
         self._ev_loop: asyncio.events.AbstractEventLoop = asyncio.get_event_loop()
         self._data_source: Optional[UserStreamTrackerDataSource] = None
@@ -48,8 +48,8 @@ class DemexUserStreamTracker(UserStreamTracker):
         :return: OrderBookTrackerDataSource
         """
         if not self._data_source:
-            self._data_source = DemexAPIUserStreamDataSource(
-                demex_auth=self._demex_auth,
+            self._data_source = DemexComAPIUserStreamDataSource(
+                demex_com_auth=self._demex_auth,
                 trading_pairs=self._trading_pairs
             )
         return self._data_source
