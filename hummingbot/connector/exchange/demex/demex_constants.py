@@ -2,10 +2,10 @@
 
 
 EXCHANGE_NAME = "demex"
-REST_URL = "https://tradescan.demex.org"
-# WSS_PRIVATE_URL = "wss://stream.demex.com/v2/user"
+REST_URL = "https://tradescan.switcheo.org"
+
 WSS_PRIVATE_URL = "wss://d289dek49b4wqs.cloudfront.net/v2/user"
-# WSS_PUBLIC_URL = "wss://stream.demex.com/v2/market"
+
 WSS_PUBLIC_URL = "wss://ws.dem.exchange/ws"
 
 API_REASONS = {
