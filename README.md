@@ -8,7 +8,7 @@ PC LOAD LETTER, it bliked
 
 Make sure nest-asyncio is installed, (it sometimes is not installed by the setup scripts)
 
-conda install -c conda-forge nest-asyncio
+conda install nest-asyncio
 
 
 ============ Quik install =========
@@ -16,11 +16,13 @@ conda install -c conda-forge nest-asyncio
 1) Install dependencies
 
 sudo apt-get update
+
 sudo apt-get install -y build-essential git
 
 2) Install Miniconda3
 
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
 bash Miniconda3-latest-Linux-x86_64.sh
 
 3) Reload .bashrc to register "conda" command
@@ -29,7 +31,7 @@ exec bash
 
 3.5) make sure nest-asyncio in available. 
 
-conda install -c conda-forge nest-asyncio
+conda install nest-asyncio
 
 4) Clone Hummingbot-Demex
 
